@@ -1,0 +1,51 @@
+---
+
+language: python
+sudo: required
+
+services:
+  - docker
+
+env:
+  - OS_VERSION=7
+
+before_install:
+  - sudo docker pull centos:${OS_VERSION}
+
+install:
+  # Run the container in detached mode. The sleep 300 will keep the container running for 300 seconds before it is killed.
+  - docker run --detach --volume="${PWD}":/etc/ansible/roles/ansible-java-8:ro --name centos-${OS_VERSION} centos:${OS_VERSION} sleep 300
+  # Install the EPEL packages
+  - docker exec centos-${OS_VERSION} yum -y install epel-release
+  # Install the Ansible packages
+  - docker exec centos-${OS_VERSION} yum -y install ansible
+
+script:
+  # Check syntax of Ansible role
+  - docker exec centos-${OS_VERSION} ansible-playbook /etc/ansible/roles/ansible-java-8/tests/test.yaml --syntax-check
+  # Run Ansible role
+  - docker exec centos-${OS_VERSION} ansible-playbook /etc/ansible/roles/ansible-java-8/tests/test.yaml
+  # Run the playbook and role again to ensure that it is idempotent and nothing has changed
+  - >
+    docker exec centos-7 ansible-playbook /etc/ansible/roles/ansible-java-8/tests/test.yaml
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1) 
+  # Check that the Java version is 8
+  - >
+    docker exec centos-${OS_VERSION} java -version 2>&1
+    | awk -F\" '/version/ {print $2}' | grep "1.8.0"
+    && (echo "Version test - pass" && exit 0)
+    || (echo "Version test - fail" && exit 1)
+  # Check Java executable location, references java alternatives
+  - >
+    docker exec centos-${OS_VERSION} whereis java 2>&1
+    | awk -F\" '/java:/ {print $1}' | grep "\/usr\/bin\/java"
+    && (echo "Executable location test (/usr/bin/java) - pass" && exit 0)
+    || (echo "Executable location test (/usr/bin/java) - fail" && exit 1)
+
+after_script:
+  - docker stop centos-${OS_VERSION} && docker rm centos-${OS_VERSION}
+
+notifications:
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/

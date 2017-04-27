@@ -1,0 +1,9 @@
+---
+# or sudo access
+mysql_user_name: root
+mysql_user_password: root
+
+# The default root user installed by mysql - almost always root
+mysql_root_username: root
+mysql_root_password: root
+
