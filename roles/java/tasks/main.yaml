@@ -8,7 +8,6 @@
 - name: Download Java JDK
   get_url:
     url: "{{ java_download_url }}"
-    headers: "Cookie:oraclelicense=accept-securebackup-cookie"
     dest: /tmp/{{ java_archive_name }}
   when: dir.stat.exists == False
   tags:
